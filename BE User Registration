@@ -1,1 +1,749 @@
+import React, { useState } from 'react';
+import {
+  SafeAreaView,
+  ScrollView,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Modal,
+} from 'react-native';
 
+const App = () => {
+  const [currentScreen, setCurrentScreen] = useState('home');
+  const [userType, setUserType] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  
+  // Registration/Login States
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // Donation States
+  const [donationAmount, setDonationAmount] = useState('');
+  const [selectedCause, setSelectedCause] = useState(null);
+  const [showDonationModal, setShowDonationModal] = useState(false);
+  
+  // Mock Data
+  const [users, setUsers] = useState([
+    { id: 1, email: 'user@test.com', password: 'user123', name: 'Test User', type: 'user', balance: 1000 },
+    { id: 2, email: 'admin@test.com', password: 'admin123', name: 'Admin User', type: 'admin' }
+  ]);
+  
+  const [causes] = useState([
+    { id: 1, title: 'Education for Children', raised: 5420, goal: 10000, category: 'Education' },
+    { id: 2, title: 'Clean Water Project', raised: 8200, goal: 15000, category: 'Health' },
+    { id: 3, title: 'Animal Shelter', raised: 3100, goal: 5000, category: 'Animals' },
+    { id: 4, title: 'Medical Emergency Fund', raised: 12500, goal: 20000, category: 'Health' },
+  ]);
+  
+  const [donations, setDonations] = useState([]);
+
+  // Authentication Functions
+  const handleRegister = () => {
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert('Error', 'Please fill all fields');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    if (users.find(u => u.email === email)) {
+      Alert.alert('Error', 'Email already registered');
+      return;
+    }
+    
+    const newUser = {
+      id: users.length + 1,
+      email,
+      password,
+      name,
+      type: userType,
+      balance: 1000
+    };
+    
+    setUsers([...users, newUser]);
+    Alert.alert('Success', 'Registration successful! Please login.');
+    resetForm();
+    setCurrentScreen('login');
+  };
+
+  const handleLogin = () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter email and password');
+      return;
+    }
+    
+    const user = users.find(u => u.email === email && u.password === password);
+    if (user) {
+      setCurrentUser(user);
+      setIsLoggedIn(true);
+      Alert.alert('Success', `Welcome ₱{user.name}!`);
+      setCurrentScreen(user.type === 'admin' ? 'adminDashboard' : 'userDashboard');
+      resetForm();
+    } else {
+      Alert.alert('Error', 'Invalid credentials');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setCurrentUser(null);
+    setCurrentScreen('home');
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setEmail('');
+    setPassword('');
+    setName('');
+    setConfirmPassword('');
+  };
+
+  // Donation Functions
+  const handleDonate = () => {
+    if (!donationAmount || isNaN(donationAmount) || parseFloat(donationAmount) <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
+      return;
+    }
+    
+    const amount = parseFloat(donationAmount);
+    if (amount > currentUser.balance) {
+      Alert.alert('Error', 'Insufficient balance');
+      return;
+    }
+    
+    const newDonation = {
+      id: donations.length + 1,
+      userId: currentUser.id,
+      causeId: selectedCause.id,
+      amount,
+      date: new Date().toLocaleDateString(),
+      userName: currentUser.name,
+      causeName: selectedCause.title
+    };
+    
+    setDonations([...donations, newDonation]);
+    setCurrentUser({ ...currentUser, balance: currentUser.balance - amount });
+    setShowDonationModal(false);
+    setDonationAmount('');
+    Alert.alert('Success', `Thank you for donating ₱₱{amount} to ₱{selectedCause.title}!`);
+  };
+
+  const openDonationModal = (cause) => {
+    setSelectedCause(cause);
+    setShowDonationModal(true);
+  };
+
+  // Render Functions
+  const renderHome = () => (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Micro Donation Platform</Text>
+        <Text style={styles.headerSubtitle}>Make a difference with small contributions</Text>
+      </View>
+      
+      <View style={styles.content}>
+        <TouchableOpacity 
+          style={styles.menuButton}
+          onPress={() => {
+            setUserType('user');
+            setCurrentScreen('register');
+          }}
+        >
+          <Text style={styles.menuButtonText}>User Registration</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.menuButton}
+          onPress={() => {
+            setUserType('admin');
+            setCurrentScreen('register');
+          }}
+        >
+          <Text style={styles.menuButtonText}>Admin Registration</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.menuButton, styles.secondaryButton]}
+          onPress={() => setCurrentScreen('login')}
+        >
+          <Text style={styles.menuButtonText}>Login</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderRegister = () => (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>{userType === 'admin' ? 'Admin' : 'User'} Registration</Text>
+      </View>
+      
+      <ScrollView style={styles.content}>
+        <View style={styles.form}>
+          <Text style={styles.label}>Full Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your full name"
+            value={name}
+            onChangeText={setName}
+          />
+          
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+          
+          <Text style={styles.label}>Confirm Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
+          
+          <TouchableOpacity style={styles.button} onPress={handleRegister}>
+            <Text style={styles.buttonText}>Register</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.button, styles.secondaryButton]} 
+            onPress={() => {
+              resetForm();
+              setCurrentScreen('home');
+            }}
+          >
+            <Text style={styles.buttonText}>Back to Home</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
+
+  const renderLogin = () => (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Login</Text>
+      </View>
+      
+      <View style={styles.content}>
+        <View style={styles.form}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+          
+          <TouchableOpacity style={styles.button} onPress={handleLogin}>
+            <Text style={styles.buttonText}>Login</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.button, styles.secondaryButton]} 
+            onPress={() => {
+              resetForm();
+              setCurrentScreen('home');
+            }}
+          >
+            <Text style={styles.buttonText}>Back to Home</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.testCredentials}>
+            <Text style={styles.testTitle}>Test Credentials:</Text>
+            <Text style={styles.testText}>User: user@test.com / user123</Text>
+            <Text style={styles.testText}>Admin: admin@test.com / admin123</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderUserDashboard = () => (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>User Dashboard</Text>
+        <Text style={styles.headerSubtitle}>Welcome, {currentUser.name}!</Text>
+        <View style={styles.balanceContainer}>
+          <Text style={styles.balanceText}>Balance: ₱{currentUser.balance.toFixed(2)}</Text>
+        </View>
+      </View>
+      
+      <ScrollView style={styles.content}>
+        <Text style={styles.sectionTitle}>Available Causes</Text>
+        
+        {causes.map(cause => {
+          const progress = (cause.raised / cause.goal) * 100;
+          return (
+            <View key={cause.id} style={styles.causeCard}>
+              <View style={styles.causeHeader}>
+                <Text style={styles.causeTitle}>{cause.title}</Text>
+                <Text style={styles.causeCategory}>{cause.category}</Text>
+              </View>
+              
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `₱{progress}%` }]} />
+                </View>
+                <Text style={styles.progressText}>{progress.toFixed(0)}%</Text>
+              </View>
+              
+              <View style={styles.causeFooter}>
+                <Text style={styles.raisedText}>
+                  ${cause.raised} raised of ₱{cause.goal}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.donateButton}
+                  onPress={() => openDonationModal(cause)}
+                >
+                  <Text style={styles.donateButtonText}>Donate</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })}
+        
+        <Text style={styles.sectionTitle}>Your Donations</Text>
+        {donations.filter(d => d.userId === currentUser.id).length === 0 ? (
+          <Text style={styles.emptyText}>No donations yet</Text>
+        ) : (
+          donations.filter(d => d.userId === currentUser.id).map(donation => (
+            <View key={donation.id} style={styles.donationCard}>
+              <Text style={styles.donationTitle}>{donation.causeName}</Text>
+              <Text style={styles.donationAmount}>₱{donation.amount}</Text>
+              <Text style={styles.donationDate}>{donation.date}</Text>
+            </View>
+          ))
+        )}
+        
+        <TouchableOpacity 
+          style={[styles.button, styles.logoutButton]} 
+          onPress={handleLogout}
+        >
+          <Text style={styles.buttonText}>Logout</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+
+  const renderAdminDashboard = () => {
+    const totalDonations = donations.reduce((sum, d) => sum + d.amount, 0);
+    const totalUsers = users.filter(u => u.type === 'user').length;
+    
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Admin Dashboard</Text>
+          <Text style={styles.headerSubtitle}>Welcome, {currentUser.name}!</Text>
+        </View>
+        
+        <ScrollView style={styles.content}>
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{totalUsers}</Text>
+              <Text style={styles.statLabel}>Total Users</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{donations.length}</Text>
+              <Text style={styles.statLabel}>Total Donations</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>₱{totalDonations.toFixed(2)}</Text>
+              <Text style={styles.statLabel}>Total Amount</Text>
+            </View>
+          </View>
+          
+          <Text style={styles.sectionTitle}>All Donations</Text>
+          {donations.length === 0 ? (
+            <Text style={styles.emptyText}>No donations yet</Text>
+          ) : (
+            donations.map(donation => (
+              <View key={donation.id} style={styles.donationCard}>
+                <Text style={styles.donationTitle}>{donation.userName}</Text>
+                <Text style={styles.donationSubtitle}>{donation.causeName}</Text>
+                <Text style={styles.donationAmount}>₱{donation.amount}</Text>
+                <Text style={styles.donationDate}>{donation.date}</Text>
+              </View>
+            ))
+          )}
+          
+          <TouchableOpacity 
+            style={[styles.button, styles.logoutButton]} 
+            onPress={handleLogout}
+          >
+            <Text style={styles.buttonText}>Logout</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderDonationModal = () => (
+    <Modal
+      visible={showDonationModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowDonationModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Donate to {selectedCause?.title}</Text>
+          
+          <Text style={styles.modalBalance}>Your Balance: ₱{currentUser?.balance.toFixed(2)}</Text>
+          
+          <Text style={styles.label}>Donation Amount</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter amount"
+            value={donationAmount}
+            onChangeText={setDonationAmount}
+            keyboardType="numeric"
+          />
+          
+          <View style={styles.quickAmounts}>
+            {[5, 10, 25, 50].map(amount => (
+              <TouchableOpacity
+                key={amount}
+                style={styles.quickButton}
+                onPress={() => setDonationAmount(amount.toString())}
+              >
+                <Text style={styles.quickButtonText}>₱{amount}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          <TouchableOpacity style={styles.button} onPress={handleDonate}>
+            <Text style={styles.buttonText}>Confirm Donation</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.button, styles.secondaryButton]} 
+            onPress={() => {
+              setShowDonationModal(false);
+              setDonationAmount('');
+            }}
+          >
+            <Text style={styles.buttonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      {currentScreen === 'home' && renderHome()}
+      {currentScreen === 'register' && renderRegister()}
+      {currentScreen === 'login' && renderLogin()}
+      {currentScreen === 'userDashboard' && renderUserDashboard()}
+      {currentScreen === 'adminDashboard' && renderAdminDashboard()}
+      {renderDonationModal()}
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  container: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: '#6200ea',
+    padding: 20,
+    paddingTop: 30,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#e0e0e0',
+    marginTop: 5,
+  },
+  balanceContainer: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 15,
+  },
+  balanceText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+  menuButton: {
+    backgroundColor: '#6200ea',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  menuButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    backgroundColor: '#03dac6',
+  },
+  form: {
+    width: '100%',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 5,
+    color: '#333',
+  },
+  input: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 15,
+    fontSize: 16,
+  },
+  button: {
+    backgroundColor: '#6200ea',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  testCredentials: {
+    marginTop: 30,
+    padding: 15,
+    backgroundColor: '#fff3cd',
+    borderRadius: 8,
+  },
+  testTitle: {
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  testText: {
+    fontSize: 12,
+    marginTop: 3,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#333',
+  },
+  causeCard: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  causeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  causeTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  causeCategory: {
+    backgroundColor: '#e0e0e0',
+    padding: 5,
+    borderRadius: 4,
+    fontSize: 12,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  progressBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#6200ea',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  causeFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  raisedText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  donateButton: {
+    backgroundColor: '#6200ea',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  donateButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  donationCard: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  donationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  donationSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+  },
+  donationAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#6200ea',
+  },
+  donationDate: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 5,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    marginVertical: 20,
+  },
+  logoutButton: {
+    backgroundColor: '#d32f2f',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  statCard: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#6200ea',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+  modalBalance: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 15,
+  },
+  quickAmounts: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  quickButton: {
+    backgroundColor: '#e0e0e0',
+    padding: 10,
+    borderRadius: 6,
+    flex: 1,
+    marginHorizontal: 3,
+    alignItems: 'center',
+  },
+  quickButtonText: {
+    fontWeight: '600',
+  },
+});
+
+export default App;
